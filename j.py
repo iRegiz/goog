@@ -15,7 +15,16 @@ from config import db_config
 FirefoxOptions = Options()
 driver = webdriver.Firefox(options = FirefoxOptions)
 time.sleep(5)
-url_address = "https://www.google.com/maps/place/%D0%A2%D0%A6+%22%D0%9A%D0%B0%D0%B7%D1%8B%D0%BD%D0%B0%22/@50.4176069,80.2509601,17z/data=!4m16!1m9!3m8!1s0x42f2654838731c5d:0xe8605c3c0a62b8c3!2z0KLQpiAi0JrQsNC30YvQvdCwIg!8m2!3d50.4174758!4d80.2522573!9m1!1b1!16s%2Fg%2F11ckvd1950!3m5!1s0x42f2654838731c5d:0xe8605c3c0a62b8c3!8m2!3d50.4174758!4d80.2522573!16s%2Fg%2F11ckvd1950?entry=ttu&g_ep=EgoyMDI2MDMwMS4xIKXMDSoASAFQAw%3D%3D"
+connection = connect(
+        host = "MySQL-8.4",
+        user = "root",
+        password = "",
+        database = "reviews_db"
+    )
+cursor = connection.cursor()
+cursor.execute('SELECT location_id FROM locations')
+url = cursor.fetchall()
+url_address = url[0][0]
 driver.get(url_address) 
 
 print(driver.title + "\nКоординаты объекта:")
@@ -74,14 +83,8 @@ authors_past_resources = []
 reviews_from_DB = []
 authors_from_DB = []
 try:
-    connection = connect(
-        host = "MySQL-8.4",
-        user = "root",
-        password = "",
-        database = "reviews_db"
-    )
-    cursor = connection.cursor()
-    # insert_lacation = f"INSERT INTO locations (location_id, location_name) VALUES ('{coordination}', '{objects_title}')"
+    # cursor = connection.cursor()
+    # insert_lacation = f"INSERT INTO locations (location_id, location_name) VALUES ('{url_address}', '{objects_title}')"
     # cursor.execute(insert_lacation)
     # connection.commit()
     with connection.cursor() as cursore:
@@ -156,7 +159,7 @@ try:
         driver.execute_script(
             "arguments[0].scrollTop = arguments[0].scrollHeight",
         scroll_block)
-        time.sleep(1)
+        # time.sleep(1)
         reviews = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
 except Error as e:
     print("Error: ", e)
