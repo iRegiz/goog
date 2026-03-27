@@ -1,0 +1,164 @@
+import string
+import time
+import re
+import mysql.connector
+import config
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options  
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from mysql.connector import  connect, Error
+from config import db_config
+
+#OPERATIONS
+FirefoxOptions = Options()
+driver = webdriver.Firefox(options = FirefoxOptions)
+time.sleep(5)
+url_address = "https://www.google.com/maps/place/%D0%A2%D0%A6+%22%D0%9A%D0%B0%D0%B7%D1%8B%D0%BD%D0%B0%22/@50.4176069,80.2509601,17z/data=!4m16!1m9!3m8!1s0x42f2654838731c5d:0xe8605c3c0a62b8c3!2z0KLQpiAi0JrQsNC30YvQvdCwIg!8m2!3d50.4174758!4d80.2522573!9m1!1b1!16s%2Fg%2F11ckvd1950!3m5!1s0x42f2654838731c5d:0xe8605c3c0a62b8c3!8m2!3d50.4174758!4d80.2522573!16s%2Fg%2F11ckvd1950?entry=ttu&g_ep=EgoyMDI2MDMwMS4xIKXMDSoASAFQAw%3D%3D"
+driver.get(url_address) 
+
+print(driver.title + "\nКоординаты объекта:")
+objects_title = driver.title
+
+wait = WebDriverWait(driver, 10)
+
+objects_coordinates = re.search(r'@([\d\.\-]+),([\d\.\-]+)', url_address)
+latitude = objects_coordinates[1]
+longitude = objects_coordinates[2]
+print("Latitude: " + latitude +  "\nLongitude:" + longitude + "\n")
+coordination = latitude + "," + longitude
+
+img = wait.until(   
+    EC.visibility_of_element_located((By.XPATH, "/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]/button/img"))
+)
+img_url = img.get_attribute("src")
+print(img_url)
+average_rating_obg = wait.until(
+    EC.visibility_of_element_located((
+        By.CSS_SELECTOR, "span.ceNzKf"))
+)
+
+aria_label_aro = average_rating_obg.get_attribute("aria-label")
+print("Средняя оценка объекта: " + aria_label_aro)
+
+reviews_count = wait.until(
+    EC.visibility_of_element_located((
+        By.XPATH, "/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[2]/div/div[1]/div[2]/div/div[1]/div[2]/span[2]/span/span"))
+)
+print("Количесто отзывов объкета: " + reviews_count.text)
+
+reviews_block_button = wait.until(
+    EC.visibility_of_element_located((
+        By.XPATH, "/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[3]/div/div/button[2]"
+    ))
+)
+reviews_block_button.click()
+
+scroll_block = driver.find_element(By.XPATH, '/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[2]')
+
+print("\nСамые релевантный отзыв")
+
+driver.execute_script(
+     "arguments[0].scrollTop = arguments[0].scrollHeight",
+ scroll_block)
+reviews = wait.until(
+        EC.visibility_of_all_elements_located((
+        By.CSS_SELECTOR, "div.jftiEf"
+        ))
+    )
+
+#MAIN CYCLE
+past_resources = []
+authors_past_resources = []
+reviews_from_DB = []
+authors_from_DB = []
+try:
+    connection = connect(
+        host = "MySQL-8.4",
+        user = "root",
+        password = "",
+        database = "reviews_db"
+    )
+    cursor = connection.cursor()
+    # insert_lacation = f"INSERT INTO locations (location_id, location_name) VALUES ('{coordination}', '{objects_title}')"
+    # cursor.execute(insert_lacation)
+    # connection.commit()
+    with connection.cursor() as cursore:
+        cursore.execute("SELECT review_id FROM reviews")
+        rows = cursore.fetchall()
+        for row in rows:
+            reviews_from_DB.append(row[0])
+        cursore.execute("SELECT profile_id FROM authors")
+        rows = cursore.fetchall()
+        for row in rows:
+            authors_from_DB.append(row[0])
+    while True:
+        time.sleep(5)
+        for review in reviews:
+            cursor.execute("SELECT profile_id FROM authors")
+            rows = cursor.fetchall()
+            for row in rows:
+                authors_from_DB.append(row[0])
+            reviews_author_name = review.find_element(By.CLASS_NAME, "al6Kxe")
+            only_reviews_author_name = reviews_author_name.find_element(By.CLASS_NAME, "d4r55")
+            authors_ref = reviews_author_name.get_attribute("data-href")
+            authors_id = re.search(r'/contrib/(\d+)', authors_ref).group(1)
+            authors_img = review.find_element(By.CLASS_NAME, "NBa7we")
+            authors_img_src = authors_img.get_attribute("src")
+            if authors_id not in authors_from_DB:
+                insert_author = f"INSERT INTO authors (profile_id, author_name, profile_link, profile_img) VALUES ('{authors_id}','{only_reviews_author_name.text}','{authors_ref}', '{authors_img_src}');"
+                cursor.execute(insert_author)
+                connection.commit()
+            if authors_id in authors_from_DB:
+                continue
+            users_review_id = reviews_author_name.get_attribute("data-review-id")
+            if users_review_id in reviews_from_DB:
+                continue
+            if users_review_id in past_resources:
+                continue
+            past_resources.append(users_review_id)
+            try:
+                users_reviews_to_object = review.find_element(By.CSS_SELECTOR, "span.kvMYJc")
+                authors_rate_for_object = users_reviews_to_object.get_attribute("aria-label")
+                INT_authors_rate_for_object = int(authors_rate_for_object[0])
+            except:
+                INT_authors_rate_for_object = 0  
+            try:
+                authors_text = review.find_element(By.CSS_SELECTOR, "span.wiI7pd")
+            except:
+                authors_text = " "
+            try:
+                data_of_authors_review = review.find_element(By.CSS_SELECTOR, "span.rsqaWe")
+            except:
+                data_of_authors_review = 0   
+            try:
+                reviews_likes = review.find_element(By.CSS_SELECTOR, "span.pkWtMe")
+                INT_reviews_likes = reviews_likes.text
+                likes = int(INT_reviews_likes)
+            except:
+                likes = 0
+            insert_this_reviw = f"INSERT INTO reviews (review_id, content, rating, likes) VALUES ('{users_review_id}' ,'{authors_text.text}', {INT_authors_rate_for_object}, {likes})"
+            cursor.execute(insert_this_reviw)
+            connection.commit()
+            print("Ник и информация об автора отзыва: " + reviews_author_name.text)     
+            print("Id отзыва:                         " + users_review_id)  
+            print("Оценка автора объекту:             " + authors_rate_for_object)     
+            print("Отзыв автора объекту:              " + authors_text.text)    
+            print("Выложено                           " + data_of_authors_review.text + " назад")
+            try:
+                print("Количестов лайков под одзывом:     " + likes + "\n\n")
+            except:
+                print("Под отзывом нету лайков\n\n")
+            # time.sleep(1)
+        authors_from_DB = []
+        # time.sleep(10)
+        driver.execute_script(
+            "arguments[0].scrollTop = arguments[0].scrollHeight",
+        scroll_block)
+        time.sleep(1)
+        reviews = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
+except Error as e:
+    print("Error: ", e)
+
+driver.quit()
