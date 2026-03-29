@@ -103,7 +103,7 @@ try:
             rows = cursor.fetchall()
             for row in rows:
                 authors_from_DB.append(row[0])
-            time.sleep(30)
+            # time.sleep(30)
             reviews_author_name = review.find_element(By.CLASS_NAME, "al6Kxe")
             only_reviews_author_name = reviews_author_name.find_element(By.CLASS_NAME, "d4r55")
             authors_ref = reviews_author_name.get_attribute("data-href")
@@ -144,7 +144,17 @@ try:
                 likes = 0
             to_find_sys_location_id = "SELECT id FROM locations WHERE location_id = %s"
             url_to_find_sys_location_id = (f"{url_address}",)
-            insert_this_reviw = f"INSERT INTO reviews (review_id, content, rating, likes) VALUES ('{users_review_id}' ,'{authors_text.text}', {INT_authors_rate_for_object}, {likes})"
+            cursor.execute(to_find_sys_location_id, url_to_find_sys_location_id)
+            result_url_to_find_sys_location_id = cursor.fetchone()
+            sys_location_id = result_url_to_find_sys_location_id[0]
+
+            to_find_sys_author_id =  "SELECT id FROM authors WHERE profile_id = %s"
+            authors_id_to_find_sys_author_id = (f"{authors_id}",)
+            cursor.execute(to_find_sys_author_id, authors_id_to_find_sys_author_id)
+            result_authors_id_to_find_sys_author_id = cursor.fetchone()
+            sys_author_id = int(result_authors_id_to_find_sys_author_id[0])
+
+            insert_this_reviw = f"INSERT INTO reviews (review_id, content, rating, likes, sys_location_id, sys_author_id) VALUES ('{users_review_id}' ,'{authors_text.text}', {INT_authors_rate_for_object}, {likes}, {sys_location_id}, {sys_author_id})"
             cursor.execute(insert_this_reviw)
             connection.commit()
             print("Ник и информация об автора отзыва: " + reviews_author_name.text)     
