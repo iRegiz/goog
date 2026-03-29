@@ -99,10 +99,11 @@ try:
     while True:
         time.sleep(5)
         for review in reviews:
-            cursor.execute("SELECT profile_id FROM authors")
+            cursor.execute("SELECT profile_id, id FROM authors")
             rows = cursor.fetchall()
             for row in rows:
                 authors_from_DB.append(row[0])
+            time.sleep(30)
             reviews_author_name = review.find_element(By.CLASS_NAME, "al6Kxe")
             only_reviews_author_name = reviews_author_name.find_element(By.CLASS_NAME, "d4r55")
             authors_ref = reviews_author_name.get_attribute("data-href")
@@ -141,6 +142,8 @@ try:
                 likes = int(INT_reviews_likes)
             except:
                 likes = 0
+            to_find_sys_location_id = "SELECT id FROM locations WHERE location_id = %s"
+            url_to_find_sys_location_id = (f"{url_address}",)
             insert_this_reviw = f"INSERT INTO reviews (review_id, content, rating, likes) VALUES ('{users_review_id}' ,'{authors_text.text}', {INT_authors_rate_for_object}, {likes})"
             cursor.execute(insert_this_reviw)
             connection.commit()
