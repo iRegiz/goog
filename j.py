@@ -26,13 +26,10 @@ def parse_relative_ru(text):
         return datetime.now() - relativedelta(days=num)
     if "час" in text:
         return datetime.now() - relativedelta(hours=num)
-    # if "мин" in text:
-    #     return datetime.now() - relativedelta(minutes=num)
     
 #OPERATIONS
 FirefoxOptions = Options()
 driver = webdriver.Firefox(options = FirefoxOptions)
-# time.sleep(5)
 connection = connect(
         host = "MySQL-8.4",
         user = "root",
@@ -40,11 +37,10 @@ connection = connect(
         database = "reviews_db"
     )
 cursor = connection.cursor()
-cursor.execute('SELECT location_id FROM locations')
+cursor.execute(''' SELECT location_id FROM locations where location_name = 'ТЦ "Казына" – Google Карты' ''')
 url = cursor.fetchall()
 url_address = url[0][0]
 driver.get(url_address) 
-time.sleep(3)
 print(driver.title + "\nКоординаты объекта:")
 objects_title = driver.title
 
@@ -76,10 +72,11 @@ reviews_count = wait.until(
 print("Количесто отзывов объкета: " + reviews_count.text)
 
 reviews_block_button = wait.until(
-    EC.visibility_of_element_located((
-        By.XPATH, "/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[3]/div/div/button[2]"
+    EC.element_to_be_clickable((
+        (By.XPATH, '//button[@role="tab"][contains(@aria-label,"Отзывы")]')
     ))
 )
+
 reviews_block_button.click()
 
 scroll_block = driver.find_element(By.XPATH, '/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[2]')
@@ -101,10 +98,6 @@ authors_past_resources = []
 reviews_from_DB = []
 authors_from_DB = []
 try:
-    # cursor = connection.cursor()
-    # insert_lacation = f"INSERT INTO locations (location_id, location_name) VALUES ('{url_address}', '{objects_title}')"
-    # cursor.execute(insert_lacation)
-    # connection.commit()
     with connection.cursor() as cursore:
         cursore.execute("SELECT review_id FROM reviews")
         rows = cursore.fetchall()
@@ -121,7 +114,6 @@ try:
             rows = cursor.fetchall()
             for row in rows:
                 authors_from_DB.append(row[0])
-            # time.sleep(30)
             reviews_author_name = review.find_element(By.CLASS_NAME, "al6Kxe")
             only_reviews_author_name = reviews_author_name.find_element(By.CLASS_NAME, "d4r55")
             authors_ref = reviews_author_name.get_attribute("data-href")
@@ -129,7 +121,6 @@ try:
             authors_img = review.find_element(By.CLASS_NAME, "NBa7we")
             authors_img_src = authors_img.get_attribute("src")
             if authors_id not in authors_from_DB:
-                # insert_author = f"INSERT INTO authors (profile_id, author_name, profile_link, profile_img) VALUES ('{authors_id}','{only_reviews_author_name.text}','{authors_ref}', '{authors_img_src}');"
                 insert_author = "INSERT INTO authors (profile_id, author_name, profile_link, profile_img) VALUES (%s, %s, %s, %s)"
                 cursor.execute(insert_author, (authors_id,only_reviews_author_name.text,authors_ref, authors_img_src))
                 connection.commit()
@@ -155,7 +146,7 @@ try:
                 reviews_push_data = review.find_element(By.CLASS_NAME, "rsqaWe")
                 datetime_reviews_push_data = parse_relative_ru(reviews_push_data.text)
             except:
-                datetime_reviews_push_data = "Unknow data"
+                datetime_reviews_push_data = datetime.now()
             try:
                 reviews_likes = review.find_element(By.CSS_SELECTOR, "span.pkWtMe")
                 INT_reviews_likes = reviews_likes.text
@@ -186,16 +177,12 @@ try:
                 print("Количестов лайков под одзывом:     " + likes + "\n\n")
             except:
                 print("Под отзывом нету лайков\n\n")
-            # time.sleep(1)
         authors_from_DB = []
-        # time.sleep(10)
         driver.execute_script(
             "arguments[0].scrollTop = arguments[0].scrollHeight",
         scroll_block)
-        # time.sleep(1)
         reviews = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
 except Error as e:
-    # time.sleep(30)
     print("Error: ", e)
 
 driver.quit()
