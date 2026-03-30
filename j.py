@@ -3,6 +3,8 @@ import time
 import re
 import mysql.connector
 import config
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options  
@@ -11,10 +13,26 @@ from selenium.webdriver.support import expected_conditions as EC
 from mysql.connector import  connect, Error
 from config import db_config
 
+def parse_relative_ru(text):
+    num = int(re.search(r'\d+', text).group())
+    
+    if "год" in text or "лет" in text:
+        return datetime.now() - relativedelta(years=num)
+    if "месяц" in text:
+        return datetime.now() - relativedelta(months=num)
+    if "нед" in text:
+        return datetime.now() - relativedelta(weeks=num)
+    if "дн" in text:
+        return datetime.now() - relativedelta(days=num)
+    if "час" in text:
+        return datetime.now() - relativedelta(hours=num)
+    # if "мин" in text:
+    #     return datetime.now() - relativedelta(minutes=num)
+    
 #OPERATIONS
 FirefoxOptions = Options()
 driver = webdriver.Firefox(options = FirefoxOptions)
-time.sleep(5)
+# time.sleep(5)
 connection = connect(
         host = "MySQL-8.4",
         user = "root",
@@ -26,7 +44,7 @@ cursor.execute('SELECT location_id FROM locations')
 url = cursor.fetchall()
 url_address = url[0][0]
 driver.get(url_address) 
-
+time.sleep(3)
 print(driver.title + "\nКоординаты объекта:")
 objects_title = driver.title
 
@@ -134,9 +152,10 @@ try:
             except:
                 authors_text = " "
             try:
-                data_of_authors_review = review.find_element(By.CSS_SELECTOR, "span.rsqaWe")
+                reviews_push_data = review.find_element(By.CLASS_NAME, "rsqaWe")
+                datetime_reviews_push_data = parse_relative_ru(reviews_push_data.text)
             except:
-                data_of_authors_review = 0   
+                datetime_reviews_push_data = "Unknow data"
             try:
                 reviews_likes = review.find_element(By.CSS_SELECTOR, "span.pkWtMe")
                 INT_reviews_likes = reviews_likes.text
@@ -155,14 +174,14 @@ try:
             result_authors_id_to_find_sys_author_id = cursor.fetchone()
             sys_author_id = int(result_authors_id_to_find_sys_author_id[0])
 
-            insert_this_reviw = f"INSERT INTO reviews (review_id, content, rating, likes, sys_location_id, sys_author_id) VALUES ('{users_review_id}' ,'{authors_text.text}', {INT_authors_rate_for_object}, {likes}, {sys_location_id}, {sys_author_id})"
+            insert_this_reviw = f"INSERT INTO reviews (review_id, content, rating, likes, sys_location_id, sys_author_id, review_date) VALUES ('{users_review_id}' ,'{authors_text.text}', {INT_authors_rate_for_object}, {likes}, {sys_location_id}, {sys_author_id}, '{datetime_reviews_push_data}')"
             cursor.execute(insert_this_reviw)
             connection.commit()
             print("Ник и информация об автора отзыва: " + reviews_author_name.text)     
             print("Id отзыва:                         " + users_review_id)  
             print("Оценка автора объекту:             " + authors_rate_for_object)     
             print("Отзыв автора объекту:              " + authors_text.text)    
-            print("Выложено                           " + data_of_authors_review.text + " назад")
+            print("Выложено                           " + str(datetime_reviews_push_data) + " назад")
             try:
                 print("Количестов лайков под одзывом:     " + likes + "\n\n")
             except:
