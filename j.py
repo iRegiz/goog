@@ -97,8 +97,8 @@ try:
         for row in rows:
             authors_from_DB.append(row[0])
     while True:
-        time.sleep(5)
-        for review in reviews:
+        time.sleep(1)
+        for review in reviews:  
             cursor.execute("SELECT profile_id, id FROM authors")
             rows = cursor.fetchall()
             for row in rows:
@@ -111,8 +111,9 @@ try:
             authors_img = review.find_element(By.CLASS_NAME, "NBa7we")
             authors_img_src = authors_img.get_attribute("src")
             if authors_id not in authors_from_DB:
-                insert_author = f"INSERT INTO authors (profile_id, author_name, profile_link, profile_img) VALUES ('{authors_id}','{only_reviews_author_name.text}','{authors_ref}', '{authors_img_src}');"
-                cursor.execute(insert_author)
+                # insert_author = f"INSERT INTO authors (profile_id, author_name, profile_link, profile_img) VALUES ('{authors_id}','{only_reviews_author_name.text}','{authors_ref}', '{authors_img_src}');"
+                insert_author = "INSERT INTO authors (profile_id, author_name, profile_link, profile_img) VALUES (%s, %s, %s, %s)"
+                cursor.execute(insert_author, (authors_id,only_reviews_author_name.text,authors_ref, authors_img_src))
                 connection.commit()
             if authors_id in authors_from_DB:
                 continue
@@ -175,6 +176,7 @@ try:
         # time.sleep(1)
         reviews = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
 except Error as e:
+    # time.sleep(30)
     print("Error: ", e)
 
 driver.quit()
